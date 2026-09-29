@@ -140,6 +140,30 @@
   .pill.is-alert .dot { background: var(--warn-ink); }
   .asof { font-variant-numeric: tabular-nums; }
 
+  .refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 5px 12px;
+    border: 1px solid var(--hair);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .refresh:hover { border-color: var(--axis); color: var(--ink); }
+  .refresh:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .refresh:disabled { opacity: 0.55; cursor: wait; }
+  .refresh svg { width: 12px; height: 12px; flex: none; }
+  .refresh.is-busy svg { animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   /* Range control */
   .controls {
     display: flex;
@@ -402,6 +426,10 @@
       <span class="pill" id="market-pill" title="CME Globex energy hours: Sunday to Friday, 6:00 PM to 5:00 PM ET, with a one-hour break each day"><span class="dot"></span><span id="market-text">Checking market</span></span>
       <span class="pill is-alert" id="alert-pill" hidden><span class="dot"></span><span id="alert-text"></span></span>
       <span class="asof" id="asof">Loading prices…</span>
+      <button type="button" class="refresh" id="refresh" title="Fetch fresh prices from Yahoo Finance now">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M13.5 8a5.5 5.5 0 1 1-1.3-3.55l.85-.85A.75.75 0 0 1 14.5 4v3.25a.75.75 0 0 1-.75.75H10.5a.75.75 0 0 1-.53-1.28l.9-.9A4 4 0 1 0 12 8a.75.75 0 0 1 1.5 0Z"/></svg>
+        <span id="refresh-label">Refresh</span>
+      </button>
     </div>
   </header>
 
@@ -872,7 +900,7 @@
     $('alert-text').textContent = alert;
 
     $('asof').textContent = newest
-      ? `Last quote ${fmtET(newest, { hour: 'numeric', minute: '2-digit' })} ET, ${fmtET(newest, { weekday: 'short', month: 'short', day: 'numeric' })} · updates every minute`
+      ? `Last quote ${fmtET(newest, { hour: 'numeric', minute: '2-digit' })} ET, ${fmtET(newest, { weekday: 'short', month: 'short', day: 'numeric' })} · auto every minute`
       : state.loaded ? 'No prices yet' : 'Loading prices…';
     $('checked').textContent = state.checkedAt
       ? `Last checked Yahoo Finance at ${fmtET(state.checkedAt, { hour: 'numeric', minute: '2-digit', second: '2-digit' })} ET.`
@@ -940,10 +968,11 @@
   }
 
   /* ---------- polling ---------- */
-  async function getJSON(url) {
+  async function getJSON(url, { bust = false } = {}) {
+    const u = bust ? `${url}${url.includes('?') ? '&' : '?'}_=${Date.now()}` : url;
     let resp;
     try {
-      resp = await fetch(url, { cache: 'no-store' });
+      resp = await fetch(u, { cache: 'no-store' });
     } catch (e) {
       throw { kind: 'server' };
     }
@@ -953,9 +982,9 @@
     return body;
   }
 
-  async function pollIntraday() {
+  async function pollIntraday({ bust = false } = {}) {
     try {
-      const body = await getJSON('/api/intraday');
+      const body = await getJSON('/api/intraday', { bust });
       const out = {};
       for (const mk of MARKETS) {
         const m = body.markets && body.markets[mk.key];
@@ -966,12 +995,21 @@
     } catch (e) { /* keep the last intraday data */ }
   }
 
-  async function poll() {
+  function setRefreshing(on) {
+    const btn = $('refresh');
+    if (!btn) return;
+    btn.disabled = on;
+    btn.classList.toggle('is-busy', on);
+    $('refresh-label').textContent = on ? 'Refreshing…' : 'Refresh';
+  }
+
+  async function poll({ bust = false } = {}) {
     if (state.polling) return;
     state.polling = true;
+    if (bust) setRefreshing(true);
     state.lastPoll = Date.now();
     try {
-      const body = await getJSON('/api/quotes');
+      const body = await getJSON('/api/quotes', { bust });
       const docs = {};
       for (const mk of MARKETS) {
         const doc = normalize(body.markets && body.markets[mk.key]);
@@ -985,9 +1023,10 @@
     } catch (e) {
       state.problem = (e && e.kind) || 'server';
     }
-    if (state.range === '1D' && state.problem !== 'server') await pollIntraday();
+    if (state.range === '1D' && state.problem !== 'server') await pollIntraday({ bust });
     state.loaded = true;
     state.polling = false;
+    setRefreshing(false);
     renderAll();
   }
 
@@ -1017,6 +1056,8 @@
     if (w !== lastW) { lastW = w; redrawCharts(); }
   }).observe(grid);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(redrawCharts);
+
+  $('refresh').addEventListener('click', () => poll({ bust: true }));
 
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && Date.now() - state.lastPoll >= POLL_MS) poll();
