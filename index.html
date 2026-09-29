@@ -362,26 +362,35 @@
   }
   .stats dt { color: var(--ink-2); font-size: 13px; }
   .stats dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
+  /* Static position markers — not interactive controls */
   .meter {
     position: relative;
     width: 100%;
-    height: 6px;
-    border-radius: 999px;
-    background: var(--accent-soft);
+    height: 4px;
+    border-radius: 2px;
+    background: var(--hair);
     overflow: visible;
+    pointer-events: none;
   }
   .meter[hidden] { display: none !important; }
   .meter span {
     position: absolute;
-    top: 50%;
-    left: 0;
-    width: 12px;
-    height: 12px;
-    margin: -6px 0 0 -6px;
-    border-radius: 50%;
+    inset: 0 auto 0 0;
+    width: 0;
+    max-width: 100%;
+    border-radius: 2px;
     background: var(--accent);
-    box-shadow: 0 0 0 2px var(--surface);
     pointer-events: none;
+  }
+  .meter span::after {
+    content: "";
+    position: absolute;
+    top: -3px;
+    right: -1px;
+    width: 2px;
+    height: 10px;
+    border-radius: 1px;
+    background: var(--accent);
   }
 
   /* Table view */
@@ -630,11 +639,11 @@
       <dl class="stats">
         <div>
           <div class="stat-line"><dt>Day range</dt><dd data-f="day">—</dd></div>
-          <div class="meter" data-f="daymeter" hidden><span data-f="daymeterdot"></span></div>
+          <div class="meter" data-f="daymeter" role="img" hidden><span data-f="daymeterdot"></span></div>
         </div>
         <div>
           <div class="stat-line"><dt>52-week range</dt><dd data-f="yr">—</dd></div>
-          <div class="meter" data-f="meter" hidden><span data-f="meterdot"></span></div>
+          <div class="meter" data-f="meter" role="img" hidden><span data-f="meterdot"></span></div>
         </div>
         <div>
           <div class="stat-line"><dt data-f="spreadlabel"></dt><dd data-f="spread">—</dd></div>
@@ -863,8 +872,8 @@
       f.day.textContent = `${num(doc.dayLow, mk.dec)} – ${num(doc.dayHigh, mk.dec)}`;
       const dayPos = Math.max(0, Math.min(1, (doc.price - doc.dayLow) / (doc.dayHigh - doc.dayLow)));
       f.daymeter.hidden = false;
-      f.daymeterdot.style.left = (dayPos * 100).toFixed(1) + '%';
-      f.daymeter.title = `Current price sits ${Math.round(dayPos * 100)}% of the way through today’s range`;
+      f.daymeterdot.style.width = (dayPos * 100).toFixed(1) + '%';
+      f.daymeter.title = `Day-range marker: current price is ${Math.round(dayPos * 100)}% of the way from today’s low to high`;
     } else {
       f.day.textContent = doc.dayLow !== null && doc.dayHigh !== null ? `${num(doc.dayLow, mk.dec)} – ${num(doc.dayHigh, mk.dec)}` : '—';
       f.daymeter.hidden = true;
@@ -873,8 +882,8 @@
       f.yr.textContent = `${num(doc.low52, mk.dec)} – ${num(doc.high52, mk.dec)}`;
       const pos = Math.max(0, Math.min(1, (doc.price - doc.low52) / (doc.high52 - doc.low52)));
       f.meter.hidden = false;
-      f.meterdot.style.left = (pos * 100).toFixed(1) + '%';
-      f.meter.title = `Current price sits ${Math.round(pos * 100)}% of the way from the 52-week low to the high`;
+      f.meterdot.style.width = (pos * 100).toFixed(1) + '%';
+      f.meter.title = `52-week marker: current price is ${Math.round(pos * 100)}% of the way from the 52-week low to the high`;
     } else {
       f.yr.textContent = '—';
       f.meter.hidden = true;
