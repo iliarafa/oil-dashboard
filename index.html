@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oil Price Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Martian+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #edf0ef;
+    --surface: #fbfcfc;
+    --ink: #111718;
+    --ink-2: #465254;
+    --muted: #647072;
+    --hair: #dde3e2;
+    --axis: #c1cbca;
+    --accent: #0d6275;
+    --accent-soft: #dcebee;
+    --up: #0f6f37;
+    --down: #b0281f;
+    --up-wash: rgba(15, 111, 55, 0.14);
+    --down-wash: rgba(176, 40, 31, 0.12);
+    --open: #12893f;
+    --warn-ink: #7a4d00;
+    --warn-bg: #f9ebc7;
+    --shadow: 0 1px 2px rgba(17, 23, 24, 0.05);
+    --sans: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "Martian Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0b1011;
+      --surface: #131a1b;
+      --ink: #edf2f1;
+      --ink-2: #b0bdbd;
+      --muted: #8a9798;
+      --hair: #233033;
+      --axis: #36464a;
+      --accent: #5bb8cc;
+      --accent-soft: #173239;
+      --up: #4fd18a;
+      --down: #ff8074;
+      --up-wash: rgba(79, 209, 138, 0.16);
+      --down-wash: rgba(255, 128, 116, 0.16);
+      --open: #3fcf78;
+      --warn-ink: #f4c768;
+      --warn-bg: #3a2b0a;
+      --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0b1011;
+    --surface: #131a1b;
+    --ink: #edf2f1;
+    --ink-2: #b0bdbd;
+    --muted: #8a9798;
+    --hair: #233033;
+    --axis: #36464a;
+    --accent: #5bb8cc;
+    --accent-soft: #173239;
+    --up: #4fd18a;
+    --down: #ff8074;
+    --up-wash: rgba(79, 209, 138, 0.16);
+    --down-wash: rgba(255, 128, 116, 0.16);
+    --open: #3fcf78;
+    --warn-ink: #f4c768;
+    --warn-bg: #3a2b0a;
+    --shadow: none;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { background: var(--bg); }
+  body {
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding-inline: 24px;
+    padding-block: 28px 40px;
+    display: grid;
+    gap: 18px;
+  }
+
+  /* Header */
+  .top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px 24px;
+  }
+  .brand { display: grid; gap: 2px; }
+  h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 750;
+    font-stretch: 120%;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+  .sub { margin: 0; color: var(--ink-2); }
+  .status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    color: var(--ink-2);
+    font-size: 13px;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 3px 10px 3px 9px;
+    border: 1px solid var(--hair);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .pill.is-open .dot { background: var(--open); }
+  .pill.is-alert { background: var(--warn-bg); border-color: transparent; color: var(--warn-ink); }
+  .pill.is-alert .dot { background: var(--warn-ink); }
+  .asof { font-variant-numeric: tabular-nums; }
+
+  /* Range control */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+  }
+  .seg {
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    border-radius: 9px;
+    background: var(--hair);
+  }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label {
+    min-width: 44px;
+    padding: 5px 12px;
+    border-radius: 7px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-2);
+    cursor: pointer;
+    user-select: none;
+  }
+  .seg label:hover { color: var(--ink); }
+  .seg input:checked + label { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+  .seg input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .controls-note { color: var(--muted); font-size: 13px; }
+
+  .notice {
+    margin: 0;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: var(--warn-bg);
+    color: var(--warn-ink);
+  }
+
+  /* Panels */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  @media (min-width: 980px) {
+    .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  .panel {
+    min-width: 0;
+    display: grid;
+    align-content: start;
+    gap: 14px;
+    padding: 20px 20px 18px;
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+  }
+  .p-head { display: grid; gap: 3px; }
+  .p-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 12px;
+  }
+  h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    font-stretch: 110%;
+    letter-spacing: -0.005em;
+  }
+  .tick {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    color: var(--ink-2);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .p-desc { margin: 0; color: var(--muted); font-size: 13px; }
+
+  .quote { display: grid; gap: 4px; }
+  .price-line { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+  .price {
+    margin-inline: -5px;
+    padding-inline: 5px;
+    border-radius: 6px;
+    font-size: clamp(36px, 3.6vw, 46px);
+    font-weight: 600;
+    font-stretch: 112%;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .price.tick-up { animation: tick-up 1.8s ease-out; }
+    .price.tick-down { animation: tick-down 1.8s ease-out; }
+    .seg label { transition: background-color 120ms ease, color 120ms ease; }
+  }
+  @keyframes tick-up { from { background: var(--up-wash); } to { background: transparent; } }
+  @keyframes tick-down { from { background: var(--down-wash); } to { background: transparent; } }
+  .unit { color: var(--ink-2); font-size: 15px; font-weight: 500; }
+  .delta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 8px;
+    font-size: 15px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .delta .when { color: var(--muted); font-weight: 400; font-size: 13px; }
+  .up { color: var(--up); }
+  .down { color: var(--down); }
+  .flat { color: var(--ink-2); }
+  .equiv { margin: 0; color: var(--ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+  .chart-block { display: grid; gap: 6px; }
+  .chart-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .chart-head .ch-change { text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .chart {
+    position: relative;
+    height: 180px;
+    touch-action: pan-y;
+    border-radius: 6px;
+    outline: none;
+  }
+  .chart:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+  .chart svg { display: block; max-width: 100%; height: auto; }
+  .chart .grid-line { stroke: var(--hair); stroke-width: 1; }
+  .chart .axis-line { stroke: var(--axis); stroke-width: 1; }
+  .chart .lab { fill: var(--muted); font-family: var(--sans); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .chart .area { fill: var(--accent); fill-opacity: 0.1; stroke: none; }
+  .chart .line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .chart .end, .chart .hdot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+  .chart .xhair { stroke: var(--ink-2); stroke-opacity: 0.45; stroke-width: 1; }
+  .chart-msg {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 0 12px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    border: 1px solid var(--hair);
+    border-radius: 6px;
+  }
+  .tip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    display: grid;
+    gap: 1px;
+    padding: 6px 9px;
+    border-radius: 7px;
+    background: var(--ink);
+    color: var(--surface);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .tip strong { font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .tip span { font-size: 11.5px; opacity: 0.78; }
+
+  .stats {
+    margin: 0;
+    display: grid;
+    border-top: 1px solid var(--hair);
+  }
+  .stats > div {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    gap: 6px 12px;
+    padding-block: 9px;
+    border-bottom: 1px solid var(--hair);
+  }
+  .stats > div:last-child { border-bottom: 0; padding-bottom: 0; }
+  .stats dt { color: var(--ink-2); font-size: 13px; }
+  .stats dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
+  .meter {
+    grid-column: 1 / -1;
+    position: relative;
+    height: 4px;
+    margin: 2px 0 1px;
+    border-radius: 2px;
+    background: var(--accent-soft);
+  }
+  .meter span {
+    position: absolute;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    margin: -5px 0 0 -5px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--surface);
+  }
+
+  /* Table view */
+  .table-view {
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    border-radius: 12px;
+  }
+  .table-view summary {
+    padding: 13px 18px;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .table-view summary span + span { color: var(--muted); font-weight: 400; }
+  .table-view summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 12px; }
+  .table-scroll { overflow-x: auto; padding: 0 18px 14px; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; }
+  th, td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--hair); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; padding-left: 0; }
+  th:last-child, td:last-child { padding-right: 0; }
+  thead th { color: var(--ink-2); font-weight: 600; font-size: 12px; }
+  thead th small { display: block; color: var(--muted); font-weight: 400; }
+  tbody tr:last-child td { border-bottom: 0; }
+
+  footer {
+    display: grid;
+    gap: 4px;
+    color: var(--muted);
+    font-size: 12.5px;
+    max-width: 80ch;
+  }
+  footer p { margin: 0; }
+
+  @media (max-width: 520px) {
+    .wrap { padding-inline: 16px; padding-block: 20px 32px; }
+    h1 { font-size: 21px; }
+    .panel { padding: 16px 16px 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Oil Price Board</h1>
+      <p class="sub">Front-month futures for WTI, Brent and heating oil, in US dollars</p>
+    </div>
+    <div class="status" aria-live="polite">
+      <span class="pill" id="market-pill" title="CME Globex energy hours: Sunday to Friday, 6:00 PM to 5:00 PM ET, with a one-hour break each day"><span class="dot"></span><span id="market-text">Checking market</span></span>
+      <span class="pill is-alert" id="alert-pill" hidden><span class="dot"></span><span id="alert-text"></span></span>
+      <span class="asof" id="asof">Loading prices…</span>
+    </div>
+  </header>
+
+  <div class="controls">
+    <div class="seg" role="radiogroup" aria-label="Chart range">
+      <input type="radio" name="range" id="range-1D" value="1D"><label for="range-1D">1D</label>
+      <input type="radio" name="range" id="range-1M" value="1M"><label for="range-1M">1M</label>
+      <input type="radio" name="range" id="range-3M" value="3M"><label for="range-3M">3M</label>
+      <input type="radio" name="range" id="range-6M" value="6M"><label for="range-6M">6M</label>
+      <input type="radio" name="range" id="range-1Y" value="1Y"><label for="range-1Y">1Y</label>
+    </div>
+    <span class="controls-note" id="range-note"></span>
+  </div>
+
+  <p class="notice" id="notice" hidden></p>
+
+  <main class="grid" id="grid"></main>
+
+  <details class="table-view">
+    <summary><span id="table-title">Price table</span> <span id="table-count"></span></summary>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col" id="table-first-col">Session</th>
+            <th scope="col">WTI<small>$/bbl</small></th>
+            <th scope="col">Brent<small>$/bbl</small></th>
+            <th scope="col">Heating oil<small>$/gal</small></th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </details>
+
+  <footer>
+    <p>Quotes are NYMEX front-month futures from Yahoo Finance and run several minutes behind the exchange. The board checks for new prices every minute while this page is open.</p>
+    <p>Heating oil trades as NY Harbor ULSD, quoted per gallon; one barrel is 42 US gallons. The daily line joins one contract month to the next, so a roll to a new contract can show as a small step.</p>
+    <p id="checked"></p>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const MARKETS = [
+    { key: 'wti', name: 'WTI Crude', root: 'CL', desc: 'West Texas Intermediate, Cushing, Oklahoma', unit: 'bbl', dec: 2, tickDec: 0 },
+    { key: 'brent', name: 'Brent Crude', root: 'BZ', desc: 'North Sea light sweet, the global benchmark', unit: 'bbl', dec: 2, tickDec: 0 },
+    { key: 'heating-oil', name: 'Heating Oil', root: 'HO', desc: 'NY Harbor ultra-low sulfur diesel', unit: 'gal', dec: 4, tickDec: 2 },
+  ];
+  const RANGES = { '1D': 0, '1M': 1, '3M': 3, '6M': 6, '1Y': 12 };
+  const RANGE_NOTES = {
+    '1D': 'Today in 5-minute steps, times in ET',
+    '1M': 'Daily closes over the last month',
+    '3M': 'Daily closes over the last 3 months',
+    '6M': 'Daily closes over the last 6 months',
+    '1Y': 'Daily closes over the last year',
+  };
+  const EXCHANGES = { NYM: 'NYMEX', CMX: 'COMEX', NYB: 'ICE US' };
+  const GAL_PER_BBL = 42;
+  const POLL_MS = 60000;
+  const MINUS = '−';
+  const STORE_KEY = 'oil-board.range';
+
+  const state = {
+    docs: {},          // latest quote + daily history per market
+    intraday: null,    // today's 5-minute closes per market
+    loaded: false,     // first poll finished
+    problem: null,     // null | 'server' (local server down) | 'upstream' (Yahoo unreachable)
+    feedErrors: [],    // markets that failed on the server's last fetch
+    checkedAt: null,
+    range: '1D',
+    polling: false,
+    lastPoll: 0,
+  };
+  try {
+    const saved = localStorage.getItem(STORE_KEY);
+    if (saved && saved in RANGES) state.range = saved;
+  } catch (e) { /* storage unavailable */ }
+
+  const $ = (id) => document.getElementById(id);
+
+  /* ---------- formatting ---------- */
+  const num = (v, dec) => Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  const sign = (v) => (v > 0 ? '+' : v < 0 ? MINUS : '');
+  const money = (v, dec) => (v < 0 ? MINUS : '') + '$' + num(v, dec);
+  const signedMoney = (v, dec) => sign(v) + '$' + num(v, dec);
+  const signedPct = (v) => sign(v) + num(v, 2) + '%';
+  const dir = (v) => (v > 0 ? 'up' : v < 0 ? 'down' : 'flat');
+  const arrow = (v) => (v > 0 ? '▲' : v < 0 ? '▼' : '■');
+  const dUTC = (s) => new Date(s + 'T00:00:00Z');
+  const fmtDay = (s, opts) => dUTC(s).toLocaleDateString('en-US', Object.assign({ timeZone: 'UTC' }, opts));
+  const fmtET = (date, opts) => date.toLocaleString('en-US', Object.assign({ timeZone: 'America/New_York' }, opts));
+  const etHourFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' });
+  const etHour = (ms) => Number(etHourFmt.format(new Date(ms))) % 24;
+  const isNum = (v) => typeof v === 'number' && isFinite(v);
+
+  // Points are {d: 'YYYY-MM-DD', c} for daily closes or {t: epoch ms, c} for 5-minute closes.
+  const isIntra = (pt) => pt.t !== undefined;
+  const ptLong = (pt) => isIntra(pt)
+    ? fmtET(new Date(pt.t), { weekday: 'short', hour: 'numeric', minute: '2-digit' }) + ' ET'
+    : fmtDay(pt.d, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  const ptShort = (pt) => isIntra(pt)
+    ? fmtET(new Date(pt.t), { hour: 'numeric', minute: '2-digit' }) + ' ET'
+    : fmtDay(pt.d, { month: 'short', day: 'numeric' });
+
+  /* ---------- data ---------- */
+  function normalize(raw) {
+    if (!raw || typeof raw !== 'object' || !isNum(raw.price)) return null;
+    const n = (v) => (isNum(v) ? v : null);
+    const history = Array.isArray(raw.history)
+      ? raw.history.filter((h) => Array.isArray(h) && typeof h[0] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(h[0]) && isNum(h[1]))
+      : [];
+    const t = typeof raw.marketTime === 'string' ? new Date(raw.marketTime) : null;
+    return {
+      price: raw.price,
+      change: n(raw.change),
+      changePct: n(raw.changePct),
+      dayLow: n(raw.dayLow),
+      dayHigh: n(raw.dayHigh),
+      low52: n(raw.low52),
+      high52: n(raw.high52),
+      contract: typeof raw.contract === 'string' ? raw.contract : null,
+      exchange: typeof raw.exchange === 'string' ? raw.exchange : null,
+      marketTime: t && !isNaN(t) ? t : null,
+      history,
+    };
+  }
+
+  function sliceRange(history, key) {
+    if (!history.length) return [];
+    const last = dUTC(history[history.length - 1][0]);
+    const start = new Date(Date.UTC(last.getUTCFullYear(), last.getUTCMonth() - RANGES[key], last.getUTCDate()))
+      .toISOString().slice(0, 10);
+    let i = history.findIndex((h) => h[0] > start);
+    if (i === -1) i = history.length - 1;
+    // keep the last close on or before the start date as the base of the period
+    i = Math.max(0, i - 1);
+    return history.slice(i).map((h) => ({ d: h[0], c: h[1] }));
+  }
+
+  // The points the current range charts for one market; null while today's data is still loading.
+  function pointsFor(mk) {
+    if (state.range === '1D') return state.intraday ? state.intraday[mk.key] || [] : null;
+    const doc = state.docs[mk.key];
+    return doc ? sliceRange(doc.history, state.range) : [];
+  }
+
+  /* ---------- market clock (CME Globex energy hours, ET) ---------- */
+  function marketOpen(now) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23',
+    }).formatToParts(now);
+    const get = (type) => (parts.find((p) => p.type === type) || {}).value;
+    const wd = get('weekday');
+    const mins = (Number(get('hour')) % 24) * 60 + Number(get('minute'));
+    if (wd === 'Sat') return false;
+    if (wd === 'Sun') return mins >= 18 * 60;
+    if (wd === 'Fri') return mins < 17 * 60;
+    return !(mins >= 17 * 60 && mins < 18 * 60);
+  }
+
+  /* ---------- panels ---------- */
+  const panels = {};
+  const grid = $('grid');
+  for (const mk of MARKETS) {
+    const el = document.createElement('article');
+    el.className = 'panel';
+    el.setAttribute('aria-labelledby', 'h-' + mk.key);
+    el.innerHTML = `
+      <div class="p-head">
+        <div class="p-title">
+          <h2 id="h-${mk.key}">${mk.name}</h2>
+          <span class="tick" data-f="tick">${mk.root}</span>
+        </div>
+        <p class="p-desc">${mk.desc}</p>
+      </div>
+      <div class="quote">
+        <div class="price-line"><span class="price" data-f="price">—</span><span class="unit">per ${mk.unit === 'bbl' ? 'barrel' : 'gallon'}</span></div>
+        <div class="delta flat" data-f="delta">&nbsp;</div>
+        <p class="equiv" data-f="equiv">&nbsp;</p>
+      </div>
+      <div class="chart-block">
+        <div class="chart-head"><span data-f="chlabel">Change</span><span class="ch-change" data-f="chchange"></span></div>
+        <div class="chart" data-f="chart" tabindex="0">
+          <div data-f="svg"></div>
+          <div class="chart-msg" data-f="msg">Loading prices…</div>
+          <div class="tip" data-f="tip" hidden><strong data-f="tipval"></strong><span data-f="tipdate"></span></div>
+        </div>
+      </div>
+      <dl class="stats">
+        <div><dt>Day range</dt><dd data-f="day">—</dd></div>
+        <div><dt>52-week range</dt><dd data-f="yr">—</dd><div class="meter" data-f="meter" hidden><span data-f="meterdot"></span></div></div>
+        <div><dt data-f="spreadlabel"></dt><dd data-f="spread">—</dd></div>
+      </dl>`;
+    grid.appendChild(el);
+    const f = {};
+    el.querySelectorAll('[data-f]').forEach((node) => { f[node.dataset.f] = node; });
+    panels[mk.key] = { el, f, mk, geo: null, hi: -1, lastPrice: null };
+    wireChart(panels[mk.key]);
+  }
+  panels['wti'].f.spreadlabel.textContent = 'Spread to Brent';
+  panels['brent'].f.spreadlabel.textContent = 'Premium to WTI';
+  panels['heating-oil'].f.spreadlabel.textContent = 'Heat crack vs WTI';
+  panels['heating-oil'].f.spreadlabel.title = 'Heating oil converted to dollars per barrel, minus WTI: a rough refining margin for distillates';
+
+  /* ---------- chart ---------- */
+  function niceStep(range, count) {
+    const raw = range / count;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const f = raw / mag;
+    return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * mag;
+  }
+  const crisp = (v) => Math.round(v) + 0.5;
+  const weekId = (s) => Math.floor((dUTC(s).getTime() / 864e5 + 3) / 7);
+
+  function xTicks(pts, x, left, right) {
+    const intra = isIntra(pts[0]);
+    const cand = [];
+    let prevKey = null;
+    pts.forEach((pt, i) => {
+      let key, label;
+      if (intra) {
+        key = etHour(pt.t);
+        label = fmtET(new Date(pt.t), { hour: 'numeric' });
+      } else if (state.range === '1M') {
+        key = weekId(pt.d);
+        label = fmtDay(pt.d, { month: 'short', day: 'numeric' });
+      } else {
+        key = pt.d.slice(0, 7);
+        label = fmtDay(pt.d, { month: 'short' }) + (pt.d.slice(5, 7) === '01' ? ' ’' + pt.d.slice(2, 4) : '');
+      }
+      if (i > 0 && key !== prevKey) cand.push({ i, key, label });
+      prevKey = key;
+    });
+    const minGap = intra ? 44 : state.range === '1M' ? 58 : 46;
+    let pool = cand;
+    if (intra && pts.length > 1) {
+      // label every 1, 2, 3, 4 or 6 hours, whichever gives the labels room
+      const pxPerHour = ((x(pts.length - 1) - x(0)) / Math.max(1, (pts[pts.length - 1].t - pts[0].t) / 3600e3));
+      const every = [1, 2, 3, 4, 6, 12].find((k) => k * pxPerHour >= minGap) || 12;
+      pool = cand.filter((t) => t.key % every === 0);
+    }
+    const out = [];
+    let lastX = -Infinity;
+    for (const t of pool) {
+      const tx = x(t.i);
+      if (tx < left + 14 || tx > right - 16 || tx - lastX < minGap) continue;
+      out.push(t);
+      lastX = tx;
+    }
+    return out;
+  }
+
+  function drawChart(p, pts) {
+    const mk = p.mk;
+    const W = Math.max(240, Math.floor(p.f.chart.clientWidth));
+    const H = 180;
+    const m = { t: 10, r: 10, b: 24, l: mk.tickDec ? 40 : 34 };
+    const iw = W - m.l - m.r;
+    const ih = H - m.t - m.b;
+    const vals = pts.map((d) => d.c);
+    let lo = Math.min(...vals), hi = Math.max(...vals);
+    const span = hi - lo || Math.abs(hi) * 0.02 || 1;
+    lo -= span * 0.08;
+    hi += span * 0.08;
+    const step = niceStep(hi - lo, 4);
+    const td = Math.max(mk.tickDec, step < 1 ? Math.ceil(-Math.log10(step) - 1e-9) : 0);
+    const n = pts.length;
+    const x = (i) => m.l + (n === 1 ? iw / 2 : (i / (n - 1)) * iw);
+    const y = (v) => m.t + ((hi - v) / (hi - lo)) * ih;
+    const base = m.t + ih;
+
+    let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">`;
+    for (let t = Math.ceil(lo / step) * step; t <= hi + 1e-9; t += step) {
+      const yy = crisp(y(t));
+      if (yy > base - 4) continue;
+      s += `<line class="grid-line" x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}"/>`;
+      s += `<text class="lab" x="${m.l - 8}" y="${yy}" dy="0.32em" text-anchor="end">${num(t, td)}</text>`;
+    }
+    s += `<line class="axis-line" x1="${m.l}" x2="${W - m.r}" y1="${crisp(base)}" y2="${crisp(base)}"/>`;
+    for (const t of xTicks(pts, x, m.l, W - m.r)) {
+      s += `<text class="lab" x="${x(t.i).toFixed(1)}" y="${H - 6}" text-anchor="middle">${t.label}</text>`;
+    }
+    const line = pts.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(d.c).toFixed(1)}`).join('');
+    s += `<path class="area" d="${line}L${x(n - 1).toFixed(1)},${base}L${x(0).toFixed(1)},${base}Z"/>`;
+    s += `<path class="line" d="${line}"/>`;
+    s += `<circle class="end" cx="${x(n - 1).toFixed(1)}" cy="${y(pts[n - 1].c).toFixed(1)}" r="4"/>`;
+    s += `<g class="hover" visibility="hidden"><line class="xhair" y1="${m.t}" y2="${base}"/><circle class="hdot" r="4"/></g>`;
+    s += '</svg>';
+    p.f.svg.innerHTML = s;
+    p.geo = { pts, x, y, m, iw, W, H };
+    if (p.hi >= 0) showAt(p, Math.min(p.hi, n - 1));
+  }
+
+  function showAt(p, i) {
+    const g = p.geo;
+    if (!g) return;
+    i = Math.max(0, Math.min(g.pts.length - 1, i));
+    p.hi = i;
+    const d = g.pts[i];
+    const cx = g.x(i), cy = g.y(d.c);
+    const hv = p.f.svg.querySelector('.hover');
+    hv.setAttribute('visibility', 'visible');
+    const xl = hv.querySelector('.xhair');
+    xl.setAttribute('x1', crisp(cx));
+    xl.setAttribute('x2', crisp(cx));
+    const dot = hv.querySelector('.hdot');
+    dot.setAttribute('cx', cx.toFixed(1));
+    dot.setAttribute('cy', cy.toFixed(1));
+    p.f.tipval.textContent = money(d.c, p.mk.dec);
+    p.f.tipdate.textContent = ptLong(d);
+    const tip = p.f.tip;
+    tip.hidden = false;
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    let left = cx + 12;
+    if (left + tw > g.W - 2) left = cx - 12 - tw;
+    let top = cy - th - 10;
+    if (top < 0) top = Math.min(cy + 12, g.H - th);
+    tip.style.transform = `translate(${Math.max(0, left).toFixed(0)}px, ${top.toFixed(0)}px)`;
+  }
+
+  function hideTip(p) {
+    p.hi = -1;
+    p.f.tip.hidden = true;
+    const hv = p.f.svg.querySelector('.hover');
+    if (hv) hv.setAttribute('visibility', 'hidden');
+  }
+
+  function wireChart(p) {
+    const c = p.f.chart;
+    const fromPointer = (e) => {
+      const g = p.geo;
+      if (!g) return;
+      const r = c.getBoundingClientRect();
+      const px = (e.clientX - r.left) * (g.W / r.width);
+      showAt(p, Math.round(((px - g.m.l) / g.iw) * (g.pts.length - 1)));
+    };
+    c.addEventListener('pointermove', fromPointer);
+    c.addEventListener('pointerdown', fromPointer);
+    c.addEventListener('pointerleave', () => { if (document.activeElement !== c) hideTip(p); });
+    c.addEventListener('focus', () => { if (p.geo) showAt(p, p.geo.pts.length - 1); });
+    c.addEventListener('blur', () => hideTip(p));
+    c.addEventListener('keydown', (e) => {
+      const g = p.geo;
+      if (!g) return;
+      const last = g.pts.length - 1;
+      const cur = p.hi < 0 ? last : p.hi;
+      const moves = { ArrowLeft: cur - 1, ArrowRight: cur + 1, Home: 0, End: last, PageUp: cur - 5, PageDown: cur + 5 };
+      if (e.key in moves) { e.preventDefault(); showAt(p, moves[e.key]); }
+      else if (e.key === 'Escape') hideTip(p);
+    });
+  }
+
+  /* ---------- render ---------- */
+  function setMsg(p, text) {
+    p.f.msg.hidden = !text;
+    p.f.msg.textContent = text || '';
+    if (text) { p.f.svg.innerHTML = ''; p.geo = null; p.f.tip.hidden = true; }
+  }
+
+  function emptyMessage() {
+    if (!state.loaded) return 'Loading prices…';
+    if (state.problem === 'server') return 'The board’s server isn’t responding.';
+    if (state.problem === 'upstream') return 'Can’t reach Yahoo Finance yet. Trying again every minute.';
+    return 'No price for this market yet.';
+  }
+
+  function flash(el, cls) {
+    el.classList.remove('tick-up', 'tick-down');
+    void el.offsetWidth; // restart the animation
+    el.classList.add(cls);
+  }
+
+  function renderPanel(p) {
+    const mk = p.mk, f = p.f, doc = state.docs[mk.key];
+    if (!doc) {
+      f.price.textContent = '—';
+      f.delta.className = 'delta flat';
+      f.delta.innerHTML = '&nbsp;';
+      f.equiv.innerHTML = '&nbsp;';
+      f.chlabel.textContent = 'Change';
+      f.chchange.textContent = '';
+      f.day.textContent = f.yr.textContent = f.spread.textContent = '—';
+      f.meter.hidden = true;
+      f.chart.removeAttribute('aria-label');
+      setMsg(p, emptyMessage());
+      return;
+    }
+
+    f.tick.textContent = [mk.root, EXCHANGES[doc.exchange] || doc.exchange, doc.contract].filter(Boolean).join(' · ');
+    f.price.textContent = money(doc.price, mk.dec);
+    if (p.lastPrice !== null && doc.price !== p.lastPrice) flash(f.price, doc.price > p.lastPrice ? 'tick-up' : 'tick-down');
+    p.lastPrice = doc.price;
+
+    if (doc.change !== null) {
+      const pctv = doc.changePct !== null ? doc.changePct : (doc.change / (doc.price - doc.change)) * 100;
+      f.delta.className = 'delta ' + dir(doc.change);
+      const main = document.createElement('span');
+      main.textContent = `${arrow(doc.change)} ${sign(doc.change)}${num(doc.change, mk.dec)} (${signedPct(pctv)})`;
+      const when = document.createElement('span');
+      when.className = 'when';
+      when.textContent = 'vs previous settle';
+      f.delta.replaceChildren(main, when);
+    } else {
+      f.delta.className = 'delta flat';
+      f.delta.textContent = 'Change unavailable';
+    }
+
+    f.equiv.textContent = mk.unit === 'gal'
+      ? `≈ ${money(doc.price * GAL_PER_BBL, 2)} per barrel`
+      : `≈ ${money(doc.price / GAL_PER_BBL, 3)} per gallon`;
+
+    f.day.textContent = doc.dayLow !== null && doc.dayHigh !== null ? `${num(doc.dayLow, mk.dec)} – ${num(doc.dayHigh, mk.dec)}` : '—';
+    if (doc.low52 !== null && doc.high52 !== null && doc.high52 > doc.low52) {
+      f.yr.textContent = `${num(doc.low52, mk.dec)} – ${num(doc.high52, mk.dec)}`;
+      const pos = Math.max(0, Math.min(1, (doc.price - doc.low52) / (doc.high52 - doc.low52)));
+      f.meter.hidden = false;
+      f.meterdot.style.left = (pos * 100).toFixed(1) + '%';
+      f.meter.title = `Current price sits ${Math.round(pos * 100)}% of the way from the 52-week low to the high`;
+    } else {
+      f.yr.textContent = '—';
+      f.meter.hidden = true;
+    }
+
+    const wti = state.docs['wti'], brent = state.docs['brent'];
+    let spread = null;
+    if (mk.key === 'wti' && brent) spread = signedMoney(doc.price - brent.price, 2);
+    if (mk.key === 'brent' && wti) spread = signedMoney(doc.price - wti.price, 2);
+    if (mk.key === 'heating-oil' && wti) spread = signedMoney(doc.price * GAL_PER_BBL - wti.price, 2) + '/bbl';
+    f.spread.textContent = spread || '—';
+
+    const pts = pointsFor(mk);
+    if (pts === null || pts.length < 2) {
+      f.chlabel.textContent = state.range === '1D' ? 'Today' : state.range + ' change';
+      f.chchange.textContent = '';
+      f.chart.removeAttribute('aria-label');
+      setMsg(p, pts === null ? (state.problem ? emptyMessage() : 'Loading today’s prices…')
+        : state.range === '1D' ? 'Today’s session has just started.' : 'Not enough history for this range yet.');
+      return;
+    }
+    setMsg(p, '');
+    const first = pts[0], last = pts[pts.length - 1];
+    f.chlabel.textContent = isIntra(first) ? 'Since ' + ptShort(first) : state.range + ' change';
+    const chg = ((last.c - first.c) / first.c) * 100;
+    f.chchange.className = 'ch-change ' + dir(chg);
+    f.chchange.textContent = `${arrow(chg)} ${signedPct(chg)}`;
+    const lo = pts.reduce((a, b) => (b.c < a.c ? b : a)), hi = pts.reduce((a, b) => (b.c > a.c ? b : a));
+    f.chart.setAttribute('aria-label',
+      `${mk.name}, ${RANGE_NOTES[state.range].toLowerCase()}: ${money(first.c, mk.dec)} at ${ptShort(first)} ` +
+      `to ${money(last.c, mk.dec)} at ${ptShort(last)}, low ${money(lo.c, mk.dec)}, high ${money(hi.c, mk.dec)}. ` +
+      'Use the arrow keys to read each point.');
+    drawChart(p, pts);
+  }
+
+  function renderStatus() {
+    const now = new Date();
+    const open = marketOpen(now);
+    $('market-pill').classList.toggle('is-open', open);
+    $('market-text').textContent = open ? 'Market open' : 'Market closed';
+
+    const times = Object.values(state.docs).map((d) => d.marketTime).filter(Boolean).map((d) => d.getTime());
+    const newest = times.length ? new Date(Math.max(...times)) : null;
+    let alert = '';
+    if (state.problem === 'server') alert = 'Server stopped';
+    else if (state.problem === 'upstream' || state.feedErrors.length === MARKETS.length) alert = 'Offline, retrying';
+    else if (newest && open && now - newest > 30 * 60e3) alert = 'Feed delayed';
+    $('alert-pill').hidden = !alert;
+    $('alert-text').textContent = alert;
+
+    $('asof').textContent = newest
+      ? `Last quote ${fmtET(newest, { hour: 'numeric', minute: '2-digit' })} ET, ${fmtET(newest, { weekday: 'short', month: 'short', day: 'numeric' })} · updates every minute`
+      : state.loaded ? 'No prices yet' : 'Loading prices…';
+    $('checked').textContent = state.checkedAt
+      ? `Last checked Yahoo Finance at ${fmtET(state.checkedAt, { hour: 'numeric', minute: '2-digit', second: '2-digit' })} ET.`
+      : '';
+  }
+
+  function renderNotice() {
+    const names = state.feedErrors
+      .map((e) => (MARKETS.find((mk) => mk.key === (e && e.market)) || {}).name)
+      .filter(Boolean);
+    let msg = '';
+    if (state.problem === 'server') {
+      msg = 'The board’s server isn’t responding, so prices have stopped updating. Start it again with python3 server.py, then reload this page.';
+    } else if (state.problem === 'upstream') {
+      msg = 'Can’t reach Yahoo Finance. Check your internet connection; the board tries again every minute.';
+    } else if (names.length === MARKETS.length) {
+      msg = 'Can’t reach Yahoo Finance right now, so these are the last prices received. The board tries again every minute.';
+    } else if (names.length) {
+      msg = `${names.join(' and ')} didn’t update on the last check, so ${names.length > 1 ? 'they show' : 'it shows'} the previous price.`;
+    }
+    $('notice').hidden = !msg;
+    $('notice').textContent = msg;
+  }
+
+  function renderTable() {
+    const intra = state.range === '1D';
+    $('table-title').textContent = intra ? 'Today in 5-minute steps' : 'Daily closes';
+    $('table-first-col').textContent = intra ? 'Time (ET)' : 'Session';
+    const cols = MARKETS.map((mk) => new Map((state.docs[mk.key] && pointsFor(mk) || []).map((pt) => [intra ? pt.t : pt.d, pt.c])));
+    const keys = [...new Set(cols.flatMap((c) => [...c.keys()]))].sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
+    const frag = document.createDocumentFragment();
+    for (const k of keys) {
+      const tr = document.createElement('tr');
+      const first = document.createElement('td');
+      first.textContent = intra
+        ? fmtET(new Date(k), { hour: 'numeric', minute: '2-digit' })
+        : fmtDay(k, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+      tr.appendChild(first);
+      MARKETS.forEach((mk, i) => {
+        const td = document.createElement('td');
+        const v = cols[i].get(k);
+        td.textContent = v === undefined ? '—' : num(v, mk.dec);
+        tr.appendChild(td);
+      });
+      frag.appendChild(tr);
+    }
+    $('table-body').replaceChildren(frag);
+    $('table-count').textContent = keys.length ? `· ${keys.length} ${intra ? 'readings' : 'sessions'}, newest first` : '';
+  }
+
+  function renderTitle() {
+    const w = state.docs['wti'], b = state.docs['brent'];
+    document.title = w
+      ? `WTI ${num(w.price, 2)}${b ? ' · Brent ' + num(b.price, 2) : ''} · Oil Price Board`
+      : 'Oil Price Board';
+  }
+
+  function renderAll() {
+    $('range-note').textContent = RANGE_NOTES[state.range];
+    renderNotice();
+    for (const mk of MARKETS) renderPanel(panels[mk.key]);
+    renderStatus();
+    renderTable();
+    renderTitle();
+  }
+
+  /* ---------- polling ---------- */
+  async function getJSON(url) {
+    let resp;
+    try {
+      resp = await fetch(url, { cache: 'no-store' });
+    } catch (e) {
+      throw { kind: 'server' };
+    }
+    let body = null;
+    try { body = await resp.json(); } catch (e) { /* not JSON */ }
+    if (!resp.ok || !body) throw { kind: resp.status === 502 ? 'upstream' : 'server' };
+    return body;
+  }
+
+  async function pollIntraday() {
+    try {
+      const body = await getJSON('/api/intraday');
+      const out = {};
+      for (const mk of MARKETS) {
+        const m = body.markets && body.markets[mk.key];
+        const pts = m && Array.isArray(m.points) ? m.points.filter((q) => Array.isArray(q) && isNum(q[0]) && isNum(q[1])) : [];
+        out[mk.key] = pts.map((q) => ({ t: q[0], c: q[1] }));
+      }
+      state.intraday = out;
+    } catch (e) { /* keep the last intraday data */ }
+  }
+
+  async function poll() {
+    if (state.polling) return;
+    state.polling = true;
+    state.lastPoll = Date.now();
+    try {
+      const body = await getJSON('/api/quotes');
+      const docs = {};
+      for (const mk of MARKETS) {
+        const doc = normalize(body.markets && body.markets[mk.key]);
+        if (doc) docs[mk.key] = doc;
+      }
+      state.docs = docs;
+      state.feedErrors = Array.isArray(body.errors) ? body.errors : [];
+      const checked = typeof body.fetchedAt === 'string' ? new Date(body.fetchedAt) : null;
+      state.checkedAt = checked && !isNaN(checked) ? checked : state.checkedAt;
+      state.problem = null;
+    } catch (e) {
+      state.problem = (e && e.kind) || 'server';
+    }
+    if (state.range === '1D' && state.problem !== 'server') await pollIntraday();
+    state.loaded = true;
+    state.polling = false;
+    renderAll();
+  }
+
+  /* ---------- controls ---------- */
+  document.querySelectorAll('input[name="range"]').forEach((input) => {
+    input.checked = input.value === state.range;
+    input.addEventListener('change', () => {
+      if (!input.checked) return;
+      state.range = input.value;
+      try { localStorage.setItem(STORE_KEY, state.range); } catch (e) { /* storage unavailable */ }
+      for (const mk of MARKETS) panels[mk.key].hi = -1;
+      renderAll();
+      if (state.range === '1D' && !state.intraday) pollIntraday().then(renderAll);
+    });
+  });
+
+  let rafId = 0;
+  const redrawCharts = () => {
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(() => {
+      for (const mk of MARKETS) if (panels[mk.key].geo) drawChart(panels[mk.key], panels[mk.key].geo.pts);
+    });
+  };
+  let lastW = 0;
+  new ResizeObserver(() => {
+    const w = grid.clientWidth;
+    if (w !== lastW) { lastW = w; redrawCharts(); }
+  }).observe(grid);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(redrawCharts);
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && Date.now() - state.lastPoll >= POLL_MS) poll();
+  });
+  setInterval(poll, POLL_MS);
+  setInterval(renderStatus, 15000);
+  renderAll();
+  poll();
+})();
+</script>
+</body>
+</html>
