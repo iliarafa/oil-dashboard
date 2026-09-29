@@ -347,33 +347,41 @@
     border-top: 1px solid var(--hair);
   }
   .stats > div {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: baseline;
-    gap: 6px 12px;
-    padding-block: 9px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding-block: 10px;
     border-bottom: 1px solid var(--hair);
   }
   .stats > div:last-child { border-bottom: 0; padding-bottom: 0; }
+  .stat-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
   .stats dt { color: var(--ink-2); font-size: 13px; }
   .stats dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
   .meter {
-    grid-column: 1 / -1;
     position: relative;
-    height: 4px;
-    margin: 2px 0 1px;
-    border-radius: 2px;
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
     background: var(--accent-soft);
+    overflow: visible;
   }
+  .meter[hidden] { display: none !important; }
   .meter span {
     position: absolute;
     top: 50%;
-    width: 10px;
-    height: 10px;
-    margin: -5px 0 0 -5px;
+    left: 0;
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
     border-radius: 50%;
     background: var(--accent);
     box-shadow: 0 0 0 2px var(--surface);
+    pointer-events: none;
   }
 
   /* Table view */
@@ -620,9 +628,17 @@
         </div>
       </div>
       <dl class="stats">
-        <div><dt>Day range</dt><dd data-f="day">—</dd></div>
-        <div><dt>52-week range</dt><dd data-f="yr">—</dd><div class="meter" data-f="meter" hidden><span data-f="meterdot"></span></div></div>
-        <div><dt data-f="spreadlabel"></dt><dd data-f="spread">—</dd></div>
+        <div>
+          <div class="stat-line"><dt>Day range</dt><dd data-f="day">—</dd></div>
+          <div class="meter" data-f="daymeter" hidden><span data-f="daymeterdot"></span></div>
+        </div>
+        <div>
+          <div class="stat-line"><dt>52-week range</dt><dd data-f="yr">—</dd></div>
+          <div class="meter" data-f="meter" hidden><span data-f="meterdot"></span></div>
+        </div>
+        <div>
+          <div class="stat-line"><dt data-f="spreadlabel"></dt><dd data-f="spread">—</dd></div>
+        </div>
       </dl>`;
     grid.appendChild(el);
     const f = {};
@@ -814,6 +830,7 @@
       f.chchange.textContent = '';
       f.day.textContent = f.yr.textContent = f.spread.textContent = '—';
       f.meter.hidden = true;
+      f.daymeter.hidden = true;
       f.chart.removeAttribute('aria-label');
       setMsg(p, emptyMessage());
       return;
@@ -842,7 +859,16 @@
       ? `≈ ${money(doc.price * GAL_PER_BBL, 2)} per barrel`
       : `≈ ${money(doc.price / GAL_PER_BBL, 3)} per gallon`;
 
-    f.day.textContent = doc.dayLow !== null && doc.dayHigh !== null ? `${num(doc.dayLow, mk.dec)} – ${num(doc.dayHigh, mk.dec)}` : '—';
+    if (doc.dayLow !== null && doc.dayHigh !== null && doc.dayHigh > doc.dayLow) {
+      f.day.textContent = `${num(doc.dayLow, mk.dec)} – ${num(doc.dayHigh, mk.dec)}`;
+      const dayPos = Math.max(0, Math.min(1, (doc.price - doc.dayLow) / (doc.dayHigh - doc.dayLow)));
+      f.daymeter.hidden = false;
+      f.daymeterdot.style.left = (dayPos * 100).toFixed(1) + '%';
+      f.daymeter.title = `Current price sits ${Math.round(dayPos * 100)}% of the way through today’s range`;
+    } else {
+      f.day.textContent = doc.dayLow !== null && doc.dayHigh !== null ? `${num(doc.dayLow, mk.dec)} – ${num(doc.dayHigh, mk.dec)}` : '—';
+      f.daymeter.hidden = true;
+    }
     if (doc.low52 !== null && doc.high52 !== null && doc.high52 > doc.low52) {
       f.yr.textContent = `${num(doc.low52, mk.dec)} – ${num(doc.high52, mk.dec)}`;
       const pos = Math.max(0, Math.min(1, (doc.price - doc.low52) / (doc.high52 - doc.low52)));
